@@ -15,7 +15,7 @@
 | `SILICONEFLOW_API_KEY` | Required when `DEFAULT_PROVIDER=siliconeflow` | `sk-...` | SiliconeFlow auth token. |
 | `SILICONEFLOW_URL` | Required when `DEFAULT_PROVIDER=siliconeflow` | `https://api.siliconeflow.com/v1/chat` | SiliconeFlow API URL. |
 | `DATABASE_URL` | Recommended | `sqlite:///./data/shopmind.db` | Persistence backend (SQLite/Postgres). |
-| `ALLOWED_ORIGINS` | Recommended | `https://shopmind-ai.azurewebsites.net` | CORS policy. |
+| `ALLOWED_ORIGINS` | Recommended | `https://shopmindai-backend.azurewebsites.net` | CORS policy. |
 | `LOG_LEVEL` | No | `INFO` | Logging verbosity. |
 | `MAX_RETRIEVE_DOCS` | No | `10` | Retrieval count cap. |
 
@@ -50,7 +50,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 5. Verify:
 
 ```bash
-curl -s https://shopmind-ai.azurewebsites.net/health
+curl -s https://shopmindai-backend.azurewebsites.net/health
 ```
 
 ## Troubleshooting

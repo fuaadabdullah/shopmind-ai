@@ -46,7 +46,7 @@ curl -s http://localhost:8000/health
 
 ## Deployment (Azure)
 
-Production target: `https://shopmind-ai.azurewebsites.net`.
+Production target: `https://shopmindai-backend.azurewebsites.net`.
 
 Recommended Azure App Service startup command:
 
