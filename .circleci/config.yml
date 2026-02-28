@@ -1,0 +1,226 @@
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@3.2.4
+
+executors:
+  python:
+    docker:
+      - image: cimg/python:3.11
+        environment:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+      - image: cimg/postgres:15
+        environment:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+    working_directory: ~/repo
+
+commands:
+  setup_dependencies:
+    description: "Install Python dependencies with caching"
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "pyproject.toml" }}
+            - v1-dependencies-
+      - run:
+          name: Install dependencies
+          command: |
+            python -m pip install --upgrade pip setuptools wheel
+            pip install -r requirements.txt
+            pip install -e ".[dev]"
+      - save_cache:
+          paths:
+            - ~/.cache/pip
+          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "pyproject.toml" }}
+
+  wait_for_db:
+    description: "Wait for PostgreSQL to be ready"
+    steps:
+      - run:
+          name: Wait for PostgreSQL
+          command: |
+            for i in {1..30}; do
+              pg_isready -h localhost -p 5432 && break || sleep 1
+            done
+
+jobs:
+  test:
+    executor: python
+    steps:
+      - setup_dependencies
+      - wait_for_db
+
+      - run:
+          name: Run pytest with coverage
+          command: |
+            pytest tests/ \
+              --cov=app \
+              --cov-report=term-missing \
+              --cov-report=html \
+              --cov-report=xml \
+              --cov-fail-under=85 \
+              --junitxml=test-results/junit.xml \
+              -v
+
+      - store_test_results:
+          path: test-results
+
+      - store_artifacts:
+          path: htmlcov
+          destination: coverage-report
+
+      - codecov/upload:
+          file: coverage.xml
+          fail_on_error: true
+
+  migration_check:
+    executor: python
+    steps:
+      - setup_dependencies
+      - wait_for_db
+
+      - run:
+          name: Check all migrations are applied
+          command: |
+            python -c "
+            import subprocess
+            import sys
+            
+            # Show migration history
+            subprocess.run(['alembic', 'history', '--verbose'], check=False)
+            
+            # Run pending migrations
+            print('\n>>> Applying pending migrations...')
+            subprocess.run(['alembic', 'upgrade', 'head'], check=True)
+            
+            # Verify we're at head
+            result = subprocess.run(['alembic', 'current'], capture_output=True, text=True)
+            print('Current migration:', result.stdout)
+            
+            if 'head' not in result.stdout:
+                print('ERROR: Database not at head migration!')
+                sys.exit(1)
+            print('✓ All migrations applied successfully')
+            "
+
+      - run:
+          name: Verify schema integrity
+          command: python check_db_schema.py
+
+  lint_code:
+    executor: python
+    steps:
+      - setup_dependencies
+
+      - run:
+          name: Check code formatting with Black
+          command: black --check --diff app/ tests/ scripts/
+
+      - run:
+          name: Check import sorting with isort
+          command: isort --check-only --diff app/ tests/ scripts/
+
+      - run:
+          name: Run Ruff linter
+          command: ruff check app/ tests/ scripts/ --output-format=github
+
+      - run:
+          name: Run Pylint
+          command: |
+            pylint app/ --fail-under=8.0 --exit-zero || true
+
+      - run:
+          name: Run mypy type checking
+          command: |
+            mypy app/ tests/ \
+              --ignore-missing-imports \
+              --no-error-summary || true
+
+  type_check:
+    executor: python
+    steps:
+      - setup_dependencies
+
+      - run:
+          name: Run mypy with strict settings for critical paths
+          command: |
+            mypy app/providers/ \
+              app/models.py \
+              app/schemas.py \
+              --disallow-untyped-defs \
+              --ignore-missing-imports || true
+
+  security_scan:
+    executor: python
+    steps:
+      - setup_dependencies
+
+      - run:
+          name: Run bandit security scan
+          command: bandit -r app/ -f json -o bandit-report.json || true
+
+      - store_artifacts:
+          path: bandit-report.json
+          destination: security-report
+
+  code_quality:
+    executor: python
+    steps:
+      - setup_dependencies
+
+      - run:
+          name: Calculate code metrics
+          command: |
+            echo "=== Code Statistics ==="
+            wc -l app/**/*.py | tail -1
+            echo ""
+            echo "=== Complexity Analysis (Pylint) ==="
+            pylint app/ --exit-zero --disable=all --enable=design 2>/dev/null || true
+
+workflows:
+  version: 2
+
+  ci-pipeline:
+    jobs:
+      - test:
+          context: covid-context
+      - migration_check:
+          context: covid-context
+      - lint_code
+      - type_check
+      - security_scan
+      - code_quality
+      - workflow_status:
+          requires:
+            - test
+            - migration_check
+            - lint_code
+
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 2 * * *"
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+    jobs:
+      - test
+      - migration_check
+      - security_scan
+
+jobs:
+  workflow_status:
+    executor: python
+    steps:
+      - run:
+          name: All checks passed ✓
+          command: |
+            echo "✓ Tests passed"
+            echo "✓ Migrations verified"
+            echo "✓ Code is properly formatted"
+            echo "✓ Ready for merge"

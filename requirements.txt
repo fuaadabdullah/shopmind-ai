@@ -1,0 +1,35 @@
+fastapi
+uvicorn
+sentence-transformers
+faiss-cpu
+pydantic
+requests
+python-dotenv
+pdfplumber
+beautifulsoup4
+tqdm
+slowapi>=0.1.9
+email-validator>=2.0.0
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+psycopg2-binary>=2.9.0
+pydantic-settings>=2.0.0
+
+# ML / Scientific Computing
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+
+# Typing
+types-requests>=2.31.0
+
+# Observability
+prometheus-client>=0.16.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+httpx>=0.24.0
+pytest-mock>=3.12.0

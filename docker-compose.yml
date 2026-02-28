@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  shopmind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopmindai
+    image: shopmindai:latest
+    
+    # Network Configuration
+    ports:
+      - "8000:8000"  # API endpoint
+    
+    # Volume Mounts
+    # - data: Persistent FAISS index and manual PDFs
+    # - logs: Application logs for monitoring (optional)
+    volumes:
+      - ./data:/app/data
+      # Uncomment to persist logs outside container
+      # - ./logs:/app/logs
+    
+    # Environment Configuration
+    # Loads from .env file in project root
+    # See .env.example for configuration options
+    env_file:
+      - .env
+    
+    # Restart Policy
+    # unless-stopped: Restart on failure, except when manually stopped
+    # Change to "always" for production if needed
+    restart: unless-stopped
+    
+    # Health Check
+    # Monitors /health endpoint to detect container issues
+    # Docker will mark container unhealthy if checks fail
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s      # Check every 30 seconds
+      timeout: 10s       # Fail if no response in 10 seconds
+      retries: 3         # Mark unhealthy after 3 consecutive failures
+      start_period: 40s  # Wait 40s after startup before checking
+    
+    # Resource Limits (Recommended for production)
+    # Adjust based on your VM size and workload
+    # Uncomment and tune for production deployment
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'      # Max 2 CPU cores
+    #       memory: 4G       # Max 4GB RAM
+    #     reservations:
+    #       cpus: '0.5'      # Reserve 0.5 CPU cores
+    #       memory: 2G       # Reserve 2GB RAM
+    
+    # Logging Configuration
+    # Prevents logs from consuming too much disk space
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # Maximum log file size
+        max-file: "3"      # Keep last 3 log files
+    
+    # Security Options (Recommended for production)
+    # Uncomment for enhanced container security
+    # security_opt:
+    #   - no-new-privileges:true  # Prevent privilege escalation
+    # user: "1000:1000"  # Run as non-root user (appuser in Dockerfile)
+
+# Networks (Optional)
+# Uncomment to create custom network for multi-service deployments
+# networks:
+#   shopmind_network:
+#     driver: bridge
+
+# Volumes (Optional)
+# Uncomment to use named volumes instead of bind mounts
+# volumes:
+#   faiss_data:
+#   app_logs:
