@@ -73,5 +73,5 @@ Set secrets as app settings (do not commit secrets):
 
 ## Contact
 
-- Email: `fuaadabdullah@gmail.com`
+- Professional inquiries: https://heyimfuaad.me/contact
 - LinkedIn: `https://www.linkedin.com/in/fuaadabdullah`
